@@ -63,6 +63,14 @@ def main [] {
   let DATABASE_URL = $"postgres://($APP_USER):($APP_USER_PWD)@localhost:($DB_PORT)/($APP_DB_NAME)"
   $env.DATABASE_URL = $DATABASE_URL
   sqlx database create
-  
+  sqlx migrate run
+
+  print "Postgres has been migrated, ready to go!"
 }
+
+#################
+# docker exec -it postgres_112131213 bash
+# psql -U app -d newstletter
+# newsletter => \l -> pokazuje bazy
+# newsletter => \dt+ -> pokazuje tabele w bazie newsletter
 
