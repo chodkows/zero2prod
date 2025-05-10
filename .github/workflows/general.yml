@@ -55,6 +55,10 @@ jobs:
       - name: Install the Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
+      - name: Install nu
+        run:
+          cargo install nu --locked
+
       - name: Install sqlx-cli
         run:
           cargo install sqlx-cli
@@ -80,7 +84,7 @@ jobs:
 
       - name: Migrate database
         run: |
-          SKIP_DOCKER=true ./scripts/init_db.sh
+          SKIP_DOCKER=true ./scripts/init_db.nu
 
       - name: Run tests
         run: cargo test
