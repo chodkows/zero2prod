@@ -1,12 +1,15 @@
 use std::net::TcpListener;
 
-use sqlx::PgPool;
+use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
-use zero2prod::{configuration::get_configuration, startup::run};
+use zero2prod::{
+    configuration::{DatabaseSettings, get_configuration},
+    startup::run,
+};
 
 pub struct TestApp {
     pub address: String,
-    pub db_pool: PgPool,
+    pub connection_pool: PgPool,
 }
 
 async fn spawn_app() -> TestApp {
@@ -15,13 +18,39 @@ async fn spawn_app() -> TestApp {
     let address = format!("http://127.0.0.1:{}", port);
     let mut configuration = get_configuration().expect("Failed to read configuration");
     configuration.database.database_name = Uuid::new_v4().to_string();
-    let connection_string = configuration.database.connection_string();
-    let db_pool = PgPool::connect(&connection_string)
+    let connection_pool = configure_database(&configuration.database).await;
+    let server = run(listener, connection_pool.clone()).expect("Failed to bind address");
+    let _ = tokio::spawn(server);
+    TestApp {
+        address,
+        connection_pool,
+    }
+}
+
+pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
+    // Create database
+    let maintanance_settings = DatabaseSettings {
+        database_name: "postgres".to_string(),
+        username: "postgres".to_string(),
+        password: "password".to_string(),
+        ..config.clone()
+    };
+    let mut connection = PgConnection::connect(&maintanance_settings.connection_string())
         .await
         .expect("Failed to connect to Postgres");
-    let server = run(listener, db_pool.clone()).expect("Failed to bind address");
-    let _ = tokio::spawn(server);
-    TestApp { address, db_pool }
+    connection
+        .execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name).as_str())
+        .await
+        .expect("Failed to create database");
+    // Migrate database
+    let connection_pool = PgPool::connect(&config.connection_string())
+        .await
+        .expect("Failed to connect to Postgres");
+    sqlx::migrate!("./migrations")
+        .run(&connection_pool)
+        .await
+        .expect("Failed to migrate the database");
+    connection_pool
 }
 
 #[tokio::test]
@@ -49,7 +78,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     let client = reqwest::Client::new();
 
     // Act
-    let body = "name=le%20guin&email=ursula_le_guin@40gmail.com";
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
     let response = client
         .post(&format!("{}/subscriptions", &test_app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -62,7 +91,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(200, response.status().as_u16());
 
     let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
-        .fetch_one(&test_app.db_pool)
+        .fetch_one(&test_app.connection_pool)
         .await
         .expect("Failed to fetch saved subsription");
     assert_eq!(saved.email, "ursula_le_guin@gmail.com");
