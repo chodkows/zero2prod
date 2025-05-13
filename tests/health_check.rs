@@ -141,7 +141,7 @@ async fn subsribe_returns_a_400_when_fields_are_present_but_invalid() {
         assert_eq!(
             400,
             response.status().as_u16(),
-            "The API did not return a 200 OK whet the payload was {}",
+            "The API did not return a 400 OK whet the payload was {}",
             description
         );
     }
@@ -175,10 +175,4 @@ async fn subscribe_returs_a_400_when_data_is_missing() {
             error_message
         );
     }
-}
-
-#[tokio::test]
-async fn dummy_fail() {
-    let result: Result<&str, &str> = Err("The app crashed due to an IO error");
-    claims::assert_ok!(result);
 }
