@@ -1,10 +1,10 @@
 use validator::ValidateEmail;
 
 #[derive(Debug)]
-pub struct SubsriberEmail(String);
+pub struct SubscriberEmail(String);
 
-impl SubsriberEmail {
-    pub fn parse(s: String) -> Result<SubsriberEmail, String> {
+impl SubscriberEmail {
+    pub fn parse(s: String) -> Result<SubscriberEmail, String> {
         if s.validate_email() {
             Ok(Self(s))
         } else {
@@ -13,7 +13,7 @@ impl SubsriberEmail {
     }
 }
 
-impl AsRef<str> for SubsriberEmail {
+impl AsRef<str> for SubscriberEmail {
     fn as_ref(&self) -> &str {
         &self.0
     }
@@ -25,24 +25,24 @@ mod tests {
     use fake::{Fake, faker::internet::en::SafeEmail};
     use rand::{SeedableRng, rngs::StdRng};
 
-    use crate::domain::SubsriberEmail;
+    use crate::domain::SubscriberEmail;
 
     #[test]
     fn empty_string_is_rejected() {
         let email = "".to_string();
-        assert_err!(SubsriberEmail::parse(email));
+        assert_err!(SubscriberEmail::parse(email));
     }
 
     #[test]
     fn email_missing_at_symbol_is_rejected() {
         let email = "ursuladomain.com".to_string();
-        assert_err!(SubsriberEmail::parse(email));
+        assert_err!(SubscriberEmail::parse(email));
     }
 
     #[test]
     fn email_missing_subject_is_rejected() {
         let email = "@domain.com".to_string();
-        assert_err!(SubsriberEmail::parse(email));
+        assert_err!(SubscriberEmail::parse(email));
     }
 
     #[derive(Debug, Clone)]
@@ -58,6 +58,6 @@ mod tests {
 
     #[quickcheck_macros::quickcheck]
     fn valid_email_are_paresed_successfully(valid_email: ValidEmailFixture) -> bool {
-        SubsriberEmail::parse(valid_email.0).is_ok()
+        SubscriberEmail::parse(valid_email.0).is_ok()
     }
 }
